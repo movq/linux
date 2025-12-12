@@ -1,0 +1,142 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (c) 2020, Caleb Connolly <caleb@connolly.tech>
+ */
+
+/dts-v1/;
+
+#include "msm8998-google-wahoo.dtsi"
+
+/ {
+	model = "Google Pixel 2 XL";
+	compatible = "google,taimen", "google,wahoo", "qcom,msm8998";
+	qcom,msm-id = <0x124 0x20001>;
+
+	panel_ldo_vddio_supply: panel-ldo-vddio {
+		compatible = "regulator-fixed";
+		regulator-name = "panel_ldo_vddio_supply";
+
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+
+		gpio = <&tlmm 133 0>;
+		enable-active-high;
+		regulator-boot-on;
+	};
+
+	panel_ldo_vpnl_supply: panel-ldo-vpnl {
+		compatible = "regulator-fixed";
+		regulator-name = "panel_ldo_vpnl_supply";
+
+		regulator-min-microvolt = <3000000>;
+		regulator-max-microvolt = <3000000>;
+
+		gpio = <&tlmm 21 0>;
+		enable-active-high;
+		regulator-boot-on;
+	};
+};
+
+&mdss_dsi0 {
+	vdd-supply = <&vreg_l1a_0p875>;
+	vdda-supply = <&vreg_l2a_1p2>;
+
+	panel: panel@0 {
+		compatible = "lg,sw43402";
+		reg = <0>;
+
+		reset-gpios = <&tlmm 94 GPIO_ACTIVE_LOW>;
+
+		vddi-supply = <&panel_ldo_vddio_supply>;
+		vpnl-supply = <&panel_ldo_vpnl_supply>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&panel_reset_n &disp_en_default &mdp_vsync_n>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	remote-endpoint = <&panel_in>;
+	data-lanes = <0 1 2 3>;
+	qcom,te-source = "mdp_vsync_p";
+};
+
+&mdss_dsi0_phy {
+	vdds-supply = <&vreg_l1a_0p875>;
+};
+
+&tlmm {
+	disp_en_default: disp-en {
+		pins = "gpio62";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-disable;
+	};
+
+	panel_reset_n: panel-rst-n {
+		pins = "gpio94";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-disable;
+	};
+
+	mdp_vsync_n: mdp-vsync-n {
+		pins = "gpio10";
+		function = "mdp_vsync_a";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+};
+
+&ufshc {
+	status = "okay";
+
+	vcc-supply = <&vreg_l20a_2p95>;
+	vccq-supply = <&vreg_l26a_1p2>;
+	vccq2-supply = <&vreg_s4a_1p8>;
+	vcc-max-microamp = <750000>;
+	vccq-max-microamp = <560000>;
+	vccq2-max-microamp = <750000>;
+};
+
+&ufsphy {
+	status = "okay";
+
+	vdda-phy-supply = <&vreg_l1a_0p875>;
+	vdda-pll-supply = <&vreg_l2a_1p2>;
+	vddp-ref-clk-supply = <&vreg_l26a_1p2>;
+	vdda-phy-max-microamp = <51400>;
+	vdda-pll-max-microamp = <14600>;
+	vddp-ref-clk-max-microamp = <100>;
+	vddp-ref-clk-always-on;
+};
+
+&adreno_gpu {
+	status = "disabled";
+
+	/*
+	 * Disable higher GPU frequencies until voltage scaling is properly
+	 * configured. Prevents hangs under high graphics load.
+	 */
+	opp-table {
+		/delete-node/ opp-710000097;
+		/delete-node/ opp-670000048;
+		/delete-node/ opp-596000097;
+		/delete-node/ opp-515000097;
+	};
+
+	zap-shader {
+		memory-region = <&zap_shader_region>;
+		firmware-name = "qcom/msm8998/taimen/a540_zap.mdt";
+	};
+};
+
+&adreno_smmu {
+	status = "disabled";
+};

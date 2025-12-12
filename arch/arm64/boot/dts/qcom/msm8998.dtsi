@@ -3370,6 +3370,11 @@
 			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
+		restart@10ac000 {
+			compatible = "qcom,pshold";
+			reg = <0x010ac000 0x4>;
+		};
+
 		wifi: wifi@18800000 {
 			compatible = "qcom,wcn3990-wifi";
 			status = "disabled";

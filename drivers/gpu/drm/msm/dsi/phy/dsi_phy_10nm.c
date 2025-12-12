@@ -55,6 +55,7 @@ struct dsi_pll_config {
 	u32 decimal_div_start;
 	u32 frac_div_start;
 	u32 pll_clock_inverters;
+	u32 pll_outdiv_rate;
 	u32 ssc_stepsize;
 	u32 ssc_div_per;
 };
@@ -139,6 +140,19 @@ static void dsi_pll_calc_dec_frac(struct dsi_pll_10nm *pll, struct dsi_pll_confi
 		config->pll_clock_inverters = 8;
 	else
 		config->pll_clock_inverters = 0;
+
+	/*
+	 * Calculate the pll_outdiv_rate divider to keep bit clock in valid range.
+	 * Register value is log2 of divider: 0=/1, 1=/2, 2=/4, 3=/8
+	 */
+	if (pll_freq < 1000000000UL)
+		config->pll_outdiv_rate = 0;	/* VCO < 1GHz: div by 1 */
+	else if (pll_freq < 2000000000UL)
+		config->pll_outdiv_rate = 1;	/* VCO < 2GHz: div by 2 */
+	else if (pll_freq < 4000000000UL)
+		config->pll_outdiv_rate = 2;	/* VCO < 4GHz: div by 4 */
+	else
+		config->pll_outdiv_rate = 3;	/* VCO >= 4GHz: div by 8 */
 
 	config->decimal_div_start = dec;
 	config->frac_div_start = frac;
@@ -246,6 +260,7 @@ static void dsi_pll_commit(struct dsi_pll_10nm *pll, struct dsi_pll_config *conf
 	writel(0x06, base + REG_DSI_10nm_PHY_PLL_PLL_LOCK_DELAY);
 	writel(0x10, base + REG_DSI_10nm_PHY_PLL_CMODE);
 	writel(config->pll_clock_inverters, base + REG_DSI_10nm_PHY_PLL_CLOCK_INVERTERS);
+	writel(config->pll_outdiv_rate, base + REG_DSI_10nm_PHY_PLL_PLL_OUTDIV_RATE);
 }
 
 static int dsi_pll_10nm_vco_set_rate(struct clk_hw *hw, unsigned long rate,
