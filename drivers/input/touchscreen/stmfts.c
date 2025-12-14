@@ -177,21 +177,34 @@ static void stmfts_report_contact_event(struct stmfts_data *sdata,
 					const u8 event[])
 {
 	u8 slot_id = (event[0] & STMFTS_MASK_TOUCH_ID) >> 4;
-	u16 x = event[1] | ((event[2] & STMFTS_MASK_X_MSB) << 8);
-	u16 y = (event[2] >> 4) | (event[3] << 4);
-	u8 maj = event[4];
-	u8 min = event[5];
-	u8 orientation = event[6];
-	u8 area = event[7];
+	/*
+	 * FTM4 coordinate format (12-bit values):
+	 *   event[1] = X bits 11:4
+	 *   event[2] = Y bits 11:4
+	 *   event[3] = X bits 3:0 (high nibble) | Y bits 3:0 (low nibble)
+	 */
+	u16 x = (event[1] << 4) | ((event[3] & 0xF0) >> 4);
+	u16 y = (event[2] << 4) | (event[3] & 0x0F);
+	/*
+	 * FTM4 field layout:
+	 *   event[4] = pressure (z)
+	 *   event[5] = orientation (signed)
+	 *   event[6] = touch_width bits 9:2
+	 *   event[7] = touch_width bits 1:0 (high 2 bits) | height_ratio (low 6 bits)
+	 */
+	u8 pressure = event[4];
+	s8 orientation = event[5];
+	u16 touch_major = (event[6] << 2) | ((event[7] >> 6) & 0x03);
+	u16 touch_minor = ((event[7] & 0x3F) * touch_major) / 63;
 
 	input_mt_slot(sdata->input, slot_id);
 
 	input_mt_report_slot_state(sdata->input, MT_TOOL_FINGER, true);
 	input_report_abs(sdata->input, ABS_MT_POSITION_X, x);
 	input_report_abs(sdata->input, ABS_MT_POSITION_Y, y);
-	input_report_abs(sdata->input, ABS_MT_TOUCH_MAJOR, maj);
-	input_report_abs(sdata->input, ABS_MT_TOUCH_MINOR, min);
-	input_report_abs(sdata->input, ABS_MT_PRESSURE, area);
+	input_report_abs(sdata->input, ABS_MT_TOUCH_MAJOR, touch_major);
+	input_report_abs(sdata->input, ABS_MT_TOUCH_MINOR, touch_minor);
+	input_report_abs(sdata->input, ABS_MT_PRESSURE, pressure);
 	input_report_abs(sdata->input, ABS_MT_ORIENTATION, orientation);
 
 	input_sync(sdata->input);
@@ -211,8 +224,14 @@ static void stmfts_report_contact_release(struct stmfts_data *sdata,
 static void stmfts_report_hover_event(struct stmfts_data *sdata,
 				      const u8 event[])
 {
-	u16 x = (event[2] << 4) | (event[4] >> 4);
-	u16 y = (event[3] << 4) | (event[4] & STMFTS_MASK_Y_LSB);
+	/*
+	 * FTM4 hover coordinate format (12-bit values):
+	 *   event[2] = X bits 11:4
+	 *   event[3] = Y bits 11:4
+	 *   event[4] = X bits 3:0 (high nibble) | Y bits 3:0 (low nibble)
+	 */
+	u16 x = (event[2] << 4) | ((event[4] & 0xF0) >> 4);
+	u16 y = (event[3] << 4) | (event[4] & 0x0F);
 	u8 z = event[5];
 
 	input_report_abs(sdata->input, ABS_X, x);
@@ -713,9 +732,9 @@ static int stmfts_probe(struct i2c_client *client)
 	input_set_capability(sdata->input, EV_ABS, ABS_MT_POSITION_Y);
 	touchscreen_parse_properties(sdata->input, true, &sdata->prop);
 
-	input_set_abs_params(sdata->input, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
-	input_set_abs_params(sdata->input, ABS_MT_TOUCH_MINOR, 0, 255, 0, 0);
-	input_set_abs_params(sdata->input, ABS_MT_ORIENTATION, 0, 255, 0, 0);
+	input_set_abs_params(sdata->input, ABS_MT_TOUCH_MAJOR, 0, 1024, 0, 0);
+	input_set_abs_params(sdata->input, ABS_MT_TOUCH_MINOR, 0, 1024, 0, 0);
+	input_set_abs_params(sdata->input, ABS_MT_ORIENTATION, -128, 127, 0, 0);
 	input_set_abs_params(sdata->input, ABS_MT_PRESSURE, 0, 255, 0, 0);
 	input_set_abs_params(sdata->input, ABS_DISTANCE, 0, 255, 0, 0);
 
