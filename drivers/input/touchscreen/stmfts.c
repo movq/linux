@@ -5,6 +5,7 @@
 // Copyright (c) 2017 Andi Shyti <andi@etezian.org>
 
 #include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/input/mt.h>
 #include <linux/input/touchscreen.h>
@@ -34,6 +35,9 @@
 #define STMFTS_FULL_FORCE_CALIBRATION		0xa2
 #define STMFTS_MS_CX_TUNING			0xa3
 #define STMFTS_SS_CX_TUNING			0xa4
+#define STMFTS_HW_REG_W				0xb6
+#define STMFTS_IER_ADDR				0x002c
+#define STMFTS_IER_ENABLE			0x41
 
 /* events */
 #define STMFTS_EV_NO_EVENT			0x00
@@ -83,6 +87,7 @@ struct stmfts_data {
 	struct touchscreen_properties prop;
 
 	struct regulator_bulk_data regulators[2];
+	struct gpio_desc *reset_gpio;
 
 	/*
 	 * Presence of ledvdd will be used also to check
@@ -529,11 +534,18 @@ static int stmfts_power_on(struct stmfts_data *sdata)
 	if (err)
 		return err;
 
+	/* Assert reset while powering on */
+	gpiod_set_value_cansleep(sdata->reset_gpio, 1);
+
 	/*
 	 * The datasheet does not specify the power on time, but considering
 	 * that the reset time is < 10ms, I sleep 20ms to be sure
 	 */
 	msleep(20);
+
+	/* Deassert reset */
+	gpiod_set_value_cansleep(sdata->reset_gpio, 0);
+	msleep(50);
 
 	err = i2c_smbus_read_i2c_block_data(sdata->client, STMFTS_READ_INFO,
 					    sizeof(reg), reg);
@@ -550,11 +562,45 @@ static int stmfts_power_on(struct stmfts_data *sdata)
 
 	enable_irq(sdata->client->irq);
 
+	/* Enable device interrupt via IER register */
+	{
+		u8 cmd[4] = { STMFTS_HW_REG_W,
+			      (STMFTS_IER_ADDR >> 8) & 0xff,
+			      STMFTS_IER_ADDR & 0xff,
+			      STMFTS_IER_ENABLE };
+		err = i2c_smbus_write_i2c_block_data(sdata->client,
+						     cmd[0], 3, &cmd[1]);
+		if (err)
+			dev_warn(&sdata->client->dev,
+				 "failed to enable IER: %d\n", err);
+	}
+
 	msleep(50);
 
-	err = stmfts_command(sdata, STMFTS_SYSTEM_RESET);
-	if (err)
+	/*
+	 * Send SYSTEM_RESET but don't wait for response - FTM4 devices
+	 * send CONTROLLER_READY on power-up, not in response to reset.
+	 */
+	err = i2c_smbus_write_byte(sdata->client, STMFTS_SYSTEM_RESET);
+	if (err) {
+		dev_err(&sdata->client->dev, "failed to send reset: %d\n", err);
 		return err;
+	}
+	msleep(50);
+
+	/* Re-enable IER after system reset (reset clears it) */
+	{
+		u8 cmd[4] = { STMFTS_HW_REG_W,
+			      (STMFTS_IER_ADDR >> 8) & 0xff,
+			      STMFTS_IER_ADDR & 0xff,
+			      STMFTS_IER_ENABLE };
+		err = i2c_smbus_write_i2c_block_data(sdata->client,
+						     cmd[0], 3, &cmd[1]);
+		if (err)
+			dev_warn(&sdata->client->dev,
+				 "failed to re-enable IER after reset: %d\n", err);
+	}
+	msleep(20);
 
 	err = stmfts_command(sdata, STMFTS_SLEEP_OUT);
 	if (err)
@@ -648,6 +694,11 @@ static int stmfts_probe(struct i2c_client *client)
 				      sdata->regulators);
 	if (err)
 		return err;
+
+	sdata->reset_gpio = devm_gpiod_get_optional(&client->dev, "reset",
+						    GPIOD_OUT_LOW);
+	if (IS_ERR(sdata->reset_gpio))
+		return PTR_ERR(sdata->reset_gpio);
 
 	sdata->input = devm_input_allocate_device(&client->dev);
 	if (!sdata->input)
