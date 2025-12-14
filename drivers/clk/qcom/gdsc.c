@@ -256,6 +256,24 @@ static void gdsc_retain_ff_on(struct gdsc *sc)
 	regmap_update_bits(sc->regmap, sc->gdscr, mask, mask);
 }
 
+static int gdsc_force_root_clk_on(struct gdsc *sc)
+{
+	if (!(sc->flags & FORCE_ENABLE_ROOT_CLK) || !sc->root_clk_reg)
+		return 0;
+
+	/* Set CLK_ENABLE bit (bit 0) in the clock branch register */
+	return regmap_update_bits(sc->regmap, sc->root_clk_reg, BIT(0), BIT(0));
+}
+
+static void gdsc_force_root_clk_off(struct gdsc *sc)
+{
+	if (!(sc->flags & FORCE_ENABLE_ROOT_CLK) || !sc->root_clk_reg)
+		return;
+
+	/* Clear CLK_ENABLE bit (bit 0) in the clock branch register */
+	regmap_update_bits(sc->regmap, sc->root_clk_reg, BIT(0), 0);
+}
+
 static int gdsc_enable(struct generic_pm_domain *domain)
 {
 	struct gdsc *sc = domain_to_gdsc(domain);
@@ -263,6 +281,10 @@ static int gdsc_enable(struct generic_pm_domain *domain)
 
 	if (sc->pwrsts == PWRSTS_ON)
 		return gdsc_deassert_reset(sc);
+
+	ret = gdsc_force_root_clk_on(sc);
+	if (ret)
+		return ret;
 
 	if (sc->flags & SW_RESET) {
 		gdsc_assert_reset(sc);
@@ -311,6 +333,8 @@ static int gdsc_enable(struct generic_pm_domain *domain)
 		udelay(1);
 	}
 
+	gdsc_force_root_clk_off(sc);
+
 	return 0;
 }
 
@@ -321,6 +345,10 @@ static int gdsc_disable(struct generic_pm_domain *domain)
 
 	if (sc->pwrsts == PWRSTS_ON)
 		return gdsc_assert_reset(sc);
+
+	ret = gdsc_force_root_clk_on(sc);
+	if (ret)
+		return ret;
 
 	/* Turn off HW trigger mode if supported */
 	if (sc->flags & HW_CTRL) {
@@ -350,8 +378,10 @@ static int gdsc_disable(struct generic_pm_domain *domain)
 	 * Retention state. This happens in HW when the parent
 	 * domain goes down to a Low power state
 	 */
-	if (sc->pwrsts == PWRSTS_RET_ON)
+	if (sc->pwrsts == PWRSTS_RET_ON) {
+		gdsc_force_root_clk_off(sc);
 		return 0;
+	}
 
 	ret = gdsc_toggle_logic(sc, GDSC_OFF, domain->synced_poweroff);
 	if (ret)
@@ -359,6 +389,8 @@ static int gdsc_disable(struct generic_pm_domain *domain)
 
 	if (sc->flags & CLAMP_IO)
 		gdsc_assert_clamp_io(sc);
+
+	gdsc_force_root_clk_off(sc);
 
 	return 0;
 }

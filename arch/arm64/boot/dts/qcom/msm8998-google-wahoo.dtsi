@@ -302,6 +302,20 @@
 	};
 };
 
+&pm8005_regulators {
+	vdd_s1-supply = <&vph_pwr>;
+
+	pm8005_s1: s1 {
+		regulator-min-microvolt = <524000>;
+		regulator-max-microvolt = <1100000>;
+		regulator-enable-ramp-delay = <500>;
+	};
+};
+
+&gpucc {
+	vdd-gfx-supply = <&pm8005_s1>;
+};
+
 &tlmm {
 	status = "okay";
 	gpio-reserved-ranges = <0 4>, <81 4>;

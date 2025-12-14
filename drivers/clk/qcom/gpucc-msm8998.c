@@ -262,12 +262,14 @@ static struct gdsc gpu_gx_gdsc = {
 	.reset_count = 1,
 	.cxcs = (unsigned int []){ 0x1098 },
 	.cxc_count = 1,
+	.root_clk_reg = 0x1098,
 	.pd = {
 		.name = "gpu_gx",
 	},
 	.parent = &gpu_cx_gdsc.pd,
 	.pwrsts = PWRSTS_OFF_ON | PWRSTS_RET,
-	.flags = CLAMP_IO | SW_RESET | AON_RESET | NO_RET_PERIPH,
+	.flags = CLAMP_IO | SW_RESET | AON_RESET | NO_RET_PERIPH | FORCE_ENABLE_ROOT_CLK,
+	.supply = "vdd-gfx",
 };
 
 static struct clk_regmap *gpucc_msm8998_clocks[] = {
