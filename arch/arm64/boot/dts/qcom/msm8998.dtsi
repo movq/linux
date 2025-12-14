@@ -2940,17 +2940,21 @@
 					 <&mmcc MDSS_PCLK0_CLK>,
 					 <&mmcc MDSS_ESC0_CLK>,
 					 <&mmcc MDSS_AHB_CLK>,
-					 <&mmcc MDSS_AXI_CLK>;
+					 <&mmcc MDSS_AXI_CLK>,
+					 <&mmcc BYTE0_CLK_SRC>,
+					 <&mmcc PCLK0_CLK_SRC>,
+					 <&mdss_dsi0_phy DSI_BYTE_PLL_CLK>,
+				         <&mdss_dsi0_phy DSI_PIXEL_PLL_CLK>;
 				clock-names = "byte",
 					      "byte_intf",
 					      "pixel",
 					      "core",
 					      "iface",
-					      "bus";
-				assigned-clocks = <&mmcc BYTE0_CLK_SRC>,
-						  <&mmcc PCLK0_CLK_SRC>;
-				assigned-clock-parents = <&mdss_dsi0_phy DSI_BYTE_PLL_CLK>,
-							 <&mdss_dsi0_phy DSI_PIXEL_PLL_CLK>;
+					      "bus",
+					      "byte_src",
+					      "pixel_src",
+					      "dsi_pll_byte",
+					      "dsi_pll_pixel";
 
 				operating-points-v2 = <&dsi_opp_table>;
 				power-domains = <&rpmpd MSM8998_VDDCX>;

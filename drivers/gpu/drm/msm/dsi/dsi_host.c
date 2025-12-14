@@ -275,6 +275,34 @@ int dsi_clk_init_6g_v2(struct msm_dsi_host *msm_host)
 			__func__, ret);
 	}
 
+	msm_host->byte_src_clk = msm_clk_get(pdev, "byte_src");
+	if (IS_ERR(msm_host->byte_src_clk)) {
+		ret = PTR_ERR(msm_host->byte_src_clk);
+		pr_err("%s: can't find byte_src clock. ret=%d\n",
+			__func__, ret);
+	}
+
+	msm_host->dsi_pll_byte_clk = msm_clk_get(pdev, "dsi_pll_byte");
+	if (IS_ERR(msm_host->dsi_pll_byte_clk)) {
+		ret = PTR_ERR(msm_host->dsi_pll_byte_clk);
+		pr_err("%s: can't find dsi_pll_byte clock. ret=%d\n",
+			__func__, ret);
+	}
+
+	msm_host->pixel_src_clk = msm_clk_get(pdev, "pixel_src");
+	if (IS_ERR(msm_host->pixel_src_clk)) {
+		ret = PTR_ERR(msm_host->pixel_src_clk);
+		pr_err("%s: can't find pixel_src clock. ret=%d\n",
+			__func__, ret);
+	}
+
+	msm_host->dsi_pll_pixel_clk = msm_clk_get(pdev, "dsi_pll_pixel");
+	if (IS_ERR(msm_host->dsi_pll_pixel_clk)) {
+		ret = PTR_ERR(msm_host->dsi_pll_pixel_clk);
+		pr_err("%s: can't find dsi_pll_pixel clock. ret=%d\n",
+			__func__, ret);
+	}
+
 	return ret;
 }
 
@@ -385,6 +413,31 @@ int dsi_link_clk_set_rate_6g(struct msm_dsi_host *msm_host)
 
 	DBG("Set clk rates: pclk=%lu, byteclk=%lu",
 	    msm_host->pixel_clk_rate, msm_host->byte_clk_rate);
+
+	ret = clk_prepare_enable(msm_host->dsi_pll_byte_clk);
+	if (ret) {
+		pr_err("%s: Failed to enable dsi_pll_byte_clk, %d\n", __func__, ret);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(msm_host->dsi_pll_pixel_clk);
+	if (ret) {
+		pr_err("%s: Failed to enable dsi_pll_pixel_clk, %d\n", __func__, ret);
+		clk_disable_unprepare(msm_host->dsi_pll_byte_clk);
+		return ret;
+	}
+
+	ret = clk_set_parent(msm_host->byte_src_clk, msm_host->dsi_pll_byte_clk);
+	if (ret) {
+		pr_err("%s: Failed to set byte_src_clk parent, %d\n", __func__, ret);
+		return ret;
+	}
+
+	ret = clk_set_parent(msm_host->pixel_src_clk, msm_host->dsi_pll_pixel_clk);
+	if (ret) {
+		pr_err("%s: Failed to set pixel_src_clk parent, %d\n", __func__, ret);
+		return ret;
+	}
 
 	ret = dev_pm_opp_set_rate(&msm_host->pdev->dev,
 				  msm_host->byte_clk_rate);
@@ -555,6 +608,8 @@ void dsi_link_clk_disable_6g(struct msm_dsi_host *msm_host)
 	clk_disable_unprepare(msm_host->pixel_clk);
 	clk_disable_unprepare(msm_host->byte_intf_clk);
 	clk_disable_unprepare(msm_host->byte_clk);
+	clk_disable_unprepare(msm_host->dsi_pll_byte_clk);
+	clk_disable_unprepare(msm_host->dsi_pll_pixel_clk);
 }
 
 void dsi_link_clk_disable_v2(struct msm_dsi_host *msm_host)
