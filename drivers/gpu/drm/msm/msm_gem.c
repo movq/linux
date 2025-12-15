@@ -50,6 +50,7 @@ static void put_iova_spaces(struct drm_gem_object *obj, struct drm_gpuvm *vm,
 static void msm_gem_close(struct drm_gem_object *obj, struct drm_file *file)
 {
 	struct msm_context *ctx = file->driver_priv;
+	struct msm_drm_private *priv = obj->dev->dev_private;
 	struct drm_exec exec;
 
 	update_ctx_mem(file, -obj->size);
@@ -72,10 +73,23 @@ static void msm_gem_close(struct drm_gem_object *obj, struct drm_file *file)
 		return;
 
 	/*
-	 * TODO we might need to kick this to a queue to avoid blocking
-	 * in CLOSE ioctl
+	 * For GPUs without per-process page tables (e.g., A5xx), all contexts
+	 * share the same VM (gpu->vm). In this case, we cannot unmap if other
+	 * handles to this buffer still exist (from other processes), as they
+	 * may have pending GPU work. Only unmap when this is the last handle.
+	 *
+	 * Note: msm_gem_close is called BEFORE handle_count is decremented,
+	 * so handle_count > 1 means other handles still exist.
 	 */
-	dma_resv_wait_timeout(obj->resv, DMA_RESV_USAGE_BOOKKEEP, false,
+	if (priv->gpu && ctx->vm == priv->gpu->vm && obj->handle_count > 1)
+		return;
+
+	/*
+	 * Wait for any pending GPU work to complete before unmapping.
+	 * Use USAGE_READ to catch both READ and WRITE fences (BOOKKEEP
+	 * would only wait for BOOKKEEP fences, missing actual GPU work).
+	 */
+	dma_resv_wait_timeout(obj->resv, DMA_RESV_USAGE_READ, false,
 			      MAX_SCHEDULE_TIMEOUT);
 
 	msm_gem_lock_vm_and_obj(&exec, obj, ctx->vm);
@@ -1093,6 +1107,14 @@ static void msm_gem_free_object(struct drm_gem_object *obj)
 	 * the differences between the two usage models.
 	 */
 	if (!list_empty(&obj->gpuva.list)) {
+		/*
+		 * Wait for any pending GPU work to complete before unmapping.
+		 * This is especially important for shared-VM GPUs where we
+		 * skip unmapping in msm_gem_close() and defer it here.
+		 */
+		dma_resv_wait_timeout(obj->resv, DMA_RESV_USAGE_READ, false,
+				      MAX_SCHEDULE_TIMEOUT);
+
 		drm_exec_init(&exec, 0, 0);
 		drm_exec_until_all_locked (&exec) {
 			struct drm_gpuvm_bo *vm_bo;

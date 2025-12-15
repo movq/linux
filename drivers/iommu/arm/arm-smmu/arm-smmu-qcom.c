@@ -293,6 +293,14 @@ static bool qcom_adreno_can_do_ttbr1(struct arm_smmu_device *smmu)
 	if (of_device_is_compatible(np, "qcom,msm8996-smmu-v2"))
 		return false;
 
+	/*
+	 * MSM8998 has Adreno 540 (A5xx family) which doesn't implement
+	 * per-process page tables (no create_private_vm), so disable
+	 * TTBR1 split pagetable mode like MSM8996.
+	 */
+	if (of_device_is_compatible(np, "qcom,msm8998-smmu-v2"))
+		return false;
+
 	return true;
 }
 
@@ -353,6 +361,9 @@ static int qcom_adreno_smmu_init_context(struct arm_smmu_domain *smmu_domain,
 	priv->set_stall = qcom_adreno_smmu_set_stall;
 	priv->set_prr_bit = NULL;
 	priv->set_prr_addr = NULL;
+
+	dev_info(dev, "qcom_adreno_smmu_init_context: set get_fault_info=%px cookie=%px\n",
+		 priv->get_fault_info, priv->cookie);
 
 	if (of_device_is_compatible(np, "qcom,smmu-500") &&
 	    !of_device_is_compatible(np, "qcom,sm8250-smmu-500") &&
