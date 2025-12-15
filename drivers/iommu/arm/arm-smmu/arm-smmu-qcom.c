@@ -318,49 +318,6 @@ static void qcom_smmu_set_actlr_dev(struct device *dev, struct arm_smmu_device *
 	arm_smmu_cb_write(smmu, cbndx, ARM_SMMU_CB_ACTLR, (unsigned long)match->data);
 }
 
-/*
- * MSM8998 GPU SMMU implementation-defined register configuration.
- * These values are from the vendor device tree attach-impl-defs.
- */
-static const struct {
-	u32 offset;
-	u32 value;
-} msm8998_gpu_smmu_impl_defs[] = {
-	{ 0x6000, 0x2378 },
-	{ 0x6060, 0x1055 },
-	{ 0x6470, 0x110011 },
-	{ 0x6478, 0x00 },
-	{ 0x647c, 0x1000100 },
-	{ 0x6480, 0x81108110 },
-	{ 0x6484, 0x81108110 },
-	{ 0x6488, 0x3e003e0 },
-	{ 0x648c, 0x3e003e0 },
-	{ 0x6490, 0x80008010 },
-	{ 0x6494, 0x8020 },
-	{ 0x649c, 0x06 },
-	{ 0x6800, 0x06 },
-	{ 0x6900, 0x3ff },
-	{ 0x6924, 0x604 },
-	{ 0x6928, 0x11000 },
-	{ 0x6930, 0x800 },
-	{ 0x6960, 0x03 },
-	{ 0x6b64, 0x1a5551 },
-	{ 0x6b68, 0x2aaa2f82 },
-};
-
-static void qcom_adreno_smmu_write_impl_defs(struct arm_smmu_device *smmu)
-{
-	void __iomem *base = smmu->base;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(msm8998_gpu_smmu_impl_defs); i++) {
-		writel_relaxed(msm8998_gpu_smmu_impl_defs[i].value,
-			       base + msm8998_gpu_smmu_impl_defs[i].offset);
-	}
-	dev_info(smmu->dev, "Wrote %d GPU SMMU impl-def registers\n",
-		 (int)ARRAY_SIZE(msm8998_gpu_smmu_impl_defs));
-}
-
 static int qcom_adreno_smmu_init_context(struct arm_smmu_domain *smmu_domain,
 		struct io_pgtable_cfg *pgtbl_cfg, struct device *dev)
 {
@@ -372,12 +329,6 @@ static int qcom_adreno_smmu_init_context(struct arm_smmu_domain *smmu_domain,
 	struct adreno_smmu_priv *priv;
 
 	smmu_domain->cfg.flush_walk_prefer_tlbiasid = true;
-
-	/* Write MSM8998 GPU SMMU implementation-defined registers */
-	if (of_device_is_compatible(np, "qcom,msm8998-smmu-v2") &&
-	    qcom_adreno_smmu_is_gpu_device(dev)) {
-		qcom_adreno_smmu_write_impl_defs(smmu);
-	}
 
 	client_match = qsmmu->data->client_match;
 
@@ -403,11 +354,6 @@ static int qcom_adreno_smmu_init_context(struct arm_smmu_domain *smmu_domain,
 	 */
 
 	priv = dev_get_drvdata(dev);
-	if (!priv) {
-		dev_err(dev, "qcom_adreno_smmu_init_context: priv is NULL!\n");
-		return 0;
-	}
-
 	priv->cookie = smmu_domain;
 	priv->get_ttbr1_cfg = qcom_adreno_smmu_get_ttbr1_cfg;
 	priv->set_ttbr0_cfg = qcom_adreno_smmu_set_ttbr0_cfg;
