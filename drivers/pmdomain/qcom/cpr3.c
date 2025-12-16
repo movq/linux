@@ -1533,13 +1533,6 @@ static int cpr3_corner_init(struct cpr_thread *thread)
 	if (desc->cpr_type < CTRL_TYPE_CPRH)
 		return 0;
 
-	/* If the OPPs can't be adjusted, programming the CPRh is useless */
-	ret = cprh_corner_adjust_opps(thread);
-	if (ret) {
-		dev_err(drv->dev, "Cannot adjust CPU OPP voltages: %d\n", ret);
-		return ret;
-	}
-
 	total_corners = thread->num_corners;
 	extra_corners = drv->extra_corners;
 
@@ -2326,7 +2319,6 @@ static int cpr_pd_attach_dev(struct generic_pm_domain *domain,
 	struct cpr_thread *thread = container_of(domain, struct cpr_thread, pd);
 	struct cpr_drv *drv = thread->drv;
 	const struct acc_desc *acc_desc = drv->acc_desc;
-	bool cprh_opp_remove_table = false;
 	int ret = 0;
 
 	mutex_lock(&drv->lock);
@@ -2342,7 +2334,7 @@ static int cpr_pd_attach_dev(struct generic_pm_domain *domain,
 	 * This is not an error condition.
 	 */
 	if (thread->attached_cpu_dev)
-		goto unlock;
+		goto exit;
 
 	/*
 	 * cpr_scale_voltage() requires the direction (if we are changing
@@ -2358,7 +2350,7 @@ static int cpr_pd_attach_dev(struct generic_pm_domain *domain,
 		ret = PTR_ERR(thread->cpu_clk);
 		if (ret != -EPROBE_DEFER)
 			dev_err(drv->dev, "could not get cpu clk: %d\n", ret);
-		goto unlock;
+		goto exit;
 	}
 	thread->attached_cpu_dev = dev;
 
@@ -2388,7 +2380,7 @@ static int cpr_pd_attach_dev(struct generic_pm_domain *domain,
 	if (ret < 0) {
 		dev_err(drv->dev, "could not get OPP count\n");
 		thread->attached_cpu_dev = NULL;
-		goto unlock;
+		goto exit;
 	}
 	thread->num_corners = ret;
 
@@ -2399,21 +2391,7 @@ static int cpr_pd_attach_dev(struct generic_pm_domain *domain,
 				       GFP_KERNEL);
 	if (!thread->corners) {
 		ret = -ENOMEM;
-		goto unlock;
-	}
-
-	/*
-	 * If we are on CPR-Hardened we have to make sure that the attached
-	 * device has a OPP table installed, as we're going to modify it here
-	 * with our calculations based on qfprom values.
-	 */
-	if (drv->desc->cpr_type == CTRL_TYPE_CPRH) {
-		ret = dev_pm_opp_of_add_table(dev);
-		if (ret && ret != -EEXIST) {
-			dev_err(drv->dev, "Cannot add table: %d\n", ret);
-			goto unlock;
-		}
-		cprh_opp_remove_table = true;
+		goto exit;
 	}
 
 	ret = cpr3_corner_init(thread);
@@ -2437,15 +2415,20 @@ static int cpr_pd_attach_dev(struct generic_pm_domain *domain,
 	}
 	dev_info(drv->dev, "thread %d initialized with %u OPPs\n",
 		 thread->id, thread->num_corners);
+
+	thread->ext_data.num_voltages = thread->num_corners;
+	thread->ext_data.voltages = devm_kmalloc_array(dev, thread->num_corners, sizeof(*thread->ext_data.voltages), GFP_KERNEL);
+	if (!thread->ext_data.voltages) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+
+	for (unsigned int i = 0; i < thread->num_corners; i++) {
+		thread->ext_data.voltages[i].freq = thread->corners[i].freq;
+		thread->ext_data.voltages[i].uV = thread->corners[i].uV;
+	}
+
 exit:
-	/*
-	 * If we are on CPRh and we reached an error condition, we installed
-	 * the OPP table but we haven't done any setup on it, nor we ever will.
-	 * In order to leave a clean state, remove the table.
-	 */
-	if (ret && cprh_opp_remove_table)
-		dev_pm_opp_of_remove_table(thread->attached_cpu_dev);
-unlock:
 	mutex_unlock(&drv->lock);
 
 	return ret;

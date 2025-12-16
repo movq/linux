@@ -490,6 +490,10 @@ static int qcom_cpufreq_gen_params(struct device *cpu_dev,
 	if (!genpd_cpr_vdev)
 		return -EINVAL;
 
+	ret = dev_pm_opp_of_add_table(cpu_dev);
+	if (ret)
+		return ret;
+
 	/*
 	 * In the CPR3 driver we have assigned data to the genpd newly created
 	 * virtual device: this contains MEMACC and APM thresholds, as passing
@@ -536,7 +540,7 @@ static int qcom_cpufreq_gen_params(struct device *cpu_dev,
 
 	*hw_tbl = devm_kmalloc_array(&pdev->dev, gpd_opp_cnt,
 				     sizeof(**hw_tbl), GFP_KERNEL);
-	if (!hw_tbl) {
+	if (!*hw_tbl) {
 		ret = -ENOMEM;
 		goto detach_gpd;
 	}
@@ -581,7 +585,7 @@ static int qcom_cpufreq_gen_params(struct device *cpu_dev,
 		of_node_put(np);
 
 		/* Get voltage in microvolts, then convert to millivolts */
-		millivolts = dev_pm_opp_get_voltage(genpd_opp);
+		millivolts = cpr_data->voltages[i].uV;
 		if (millivolts >= apm_uV && *apm_vc < 0)
 			*apm_vc = i;
 		if (millivolts >= acc_uV && *acc_vc < 0)
@@ -655,6 +659,7 @@ static int qcom_cpufreq_gen_params(struct device *cpu_dev,
 	*num_entries = i;
 
 detach_gpd:
+	dev_pm_opp_of_remove_table(cpu_dev);
 	return ret;
 }
 
@@ -1729,9 +1734,13 @@ static int qcom_cpufreq_hw_driver_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to find icc paths\n");
 
-	for (num_domains = 0; num_domains < MAX_FREQ_DOMAINS; num_domains++)
-		if (!platform_get_resource(pdev, IORESOURCE_MEM, num_domains))
+	for (num_domains = 0; num_domains < MAX_FREQ_DOMAINS; num_domains++) {
+		char name[16];
+
+		snprintf(name, sizeof(name), "freq-domain%d", num_domains);
+		if (!platform_get_resource_byname(pdev, IORESOURCE_MEM, name))
 			break;
+	}
 
 	qcom_cpufreq.data = devm_kzalloc(dev, sizeof(struct qcom_cpufreq_data) * num_domains,
 					 GFP_KERNEL);
@@ -1751,11 +1760,13 @@ static int qcom_cpufreq_hw_driver_probe(struct platform_device *pdev)
 	for (i = 0; i < num_domains; i++) {
 		struct qcom_cpufreq_data *data = &qcom_cpufreq.data[i];
 		struct clk_init_data clk_init = {};
+		char name[16];
 		void __iomem *base;
 
-		base = devm_platform_ioremap_resource(pdev, i);
+		snprintf(name, sizeof(name), "freq-domain%d", i);
+		base = devm_platform_ioremap_resource_byname(pdev, name);
 		if (IS_ERR(base)) {
-			dev_err(dev, "Failed to map resource index %d\n", i);
+			dev_err(dev, "Failed to map resource %s\n", name);
 			return PTR_ERR(base);
 		}
 
