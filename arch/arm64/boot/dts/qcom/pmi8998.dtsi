@@ -39,6 +39,18 @@
 			#interrupt-cells = <2>;
 		};
 
+		pmi8998_fg: fuel-gauge@4000 {
+			compatible = "qcom,pmi8998-fg";
+			reg = <0x4000>, <0x1000>;
+
+			interrupts = <0x2 0x40 0x3 IRQ_TYPE_EDGE_RISING>,
+			             <0x2 0x13 0x4 IRQ_TYPE_EDGE_BOTH>;
+			interrupt-names = "soc-delta",
+				          "usb-plugin";
+
+			status = "disabled";
+		};
+
 		pmi8998_rradc: adc@4500 {
 			compatible = "qcom,pmi8998-rradc";
 			reg = <0x4500>;

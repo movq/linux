@@ -365,3 +365,7 @@
 		touchscreen-size-y = <2880>;
 	};
 };
+
+&pmi8998_fg {
+	status = "okay";
+};

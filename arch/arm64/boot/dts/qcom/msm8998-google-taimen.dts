@@ -140,3 +140,9 @@
 &adreno_smmu {
 	status = "okay";
 };
+
+&pmi8998_fg {
+	qcom,min-voltage-uv = <3400000>;    /* 3.4V cutoff */
+	qcom,max-voltage-uv = <4350000>;    /* 4.35V max */
+	qcom,battery-capacity-ua = <3520000>; /* 3520 mAh */
+};
