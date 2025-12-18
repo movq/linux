@@ -15,6 +15,8 @@
 struct a5xx_gpu {
 	struct adreno_gpu base;
 
+	struct device *gxpd;
+
 	struct drm_gem_object *pm4_bo;
 	uint64_t pm4_iova;
 

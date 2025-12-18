@@ -7,6 +7,7 @@
 #include <linux/adreno-smmu-priv.h>
 #include <linux/io-pgtable.h>
 #include <linux/kmemleak.h>
+#include <linux/pm_runtime.h>
 #include "msm_drv.h"
 #include "msm_gpu_trace.h"
 #include "msm_mmu.h"
@@ -20,6 +21,9 @@ struct msm_iommu {
 	struct page *prr_page;
 
 	struct kmem_cache *pt_cache;
+
+	/* SMMU platform device - we hold a PM ref to keep it powered */
+	struct device *smmu_pdev;
 };
 
 #define to_msm_iommu(x) container_of(x, struct msm_iommu, base)
@@ -706,6 +710,13 @@ static int msm_iommu_unmap(struct msm_mmu *mmu, uint64_t iova, size_t len)
 static void msm_iommu_destroy(struct msm_mmu *mmu)
 {
 	struct msm_iommu *iommu = to_msm_iommu(mmu);
+
+	/* Release PM reference on SMMU platform device */
+	if (iommu->smmu_pdev) {
+		pm_runtime_put_sync(iommu->smmu_pdev);
+		iommu->smmu_pdev = NULL;
+	}
+
 	iommu_domain_free(iommu->domain);
 	kmem_cache_destroy(iommu->pt_cache);
 	kfree(iommu);
@@ -775,6 +786,8 @@ struct msm_mmu *msm_iommu_gpu_new(struct device *dev, struct msm_gpu *gpu, unsig
 	struct adreno_smmu_priv *adreno_smmu = dev_get_drvdata(dev);
 	struct msm_iommu *iommu;
 	struct msm_mmu *mmu;
+	struct device *smmu_pdev;
+	int ret;
 
 	mmu = msm_iommu_new(dev, quirks);
 	if (IS_ERR(mmu))
@@ -794,6 +807,24 @@ struct msm_mmu *msm_iommu_gpu_new(struct device *dev, struct msm_gpu *gpu, unsig
 	/* Enable stall on iommu fault: */
 	if (adreno_smmu->set_stall)
 		adreno_smmu->set_stall(adreno_smmu->cookie, true);
+
+	/*
+	 * Hold a PM reference on the SMMU platform device to prevent it from
+	 * suspending while the GPU driver is loaded. This ensures the SMMU
+	 * stays powered during buffer cleanup after GPU runtime suspend.
+	 *
+	 * The SMMU platform device is the parent of the iommu_device.
+	 */
+	smmu_pdev = dev->iommu->iommu_dev->dev->parent;
+	if (smmu_pdev) {
+		ret = pm_runtime_resume_and_get(smmu_pdev);
+		if (ret < 0) {
+			dev_warn(dev, "Failed to get SMMU PM ref: %d\n", ret);
+			/* Non-fatal - continue without holding PM ref */
+		} else {
+			iommu->smmu_pdev = smmu_pdev;
+		}
+	}
 
 	return mmu;
 }

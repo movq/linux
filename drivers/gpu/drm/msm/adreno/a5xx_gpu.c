@@ -6,7 +6,9 @@
 #include <linux/types.h>
 #include <linux/cpumask.h>
 #include <linux/firmware/qcom/qcom_scm.h>
+#include <linux/pm_domain.h>
 #include <linux/pm_opp.h>
+#include <linux/pm_runtime.h>
 #include <linux/nvmem-consumer.h>
 #include <linux/slab.h>
 #include "msm_gem.h"
@@ -1061,6 +1063,11 @@ static void a5xx_destroy(struct msm_gpu *gpu)
 		drm_gem_object_put(a5xx_gpu->shadow_bo);
 	}
 
+	if (a5xx_gpu->gxpd) {
+		pm_runtime_disable(a5xx_gpu->gxpd);
+		dev_pm_domain_detach(a5xx_gpu->gxpd, false);
+	}
+
 	adreno_gpu_cleanup(adreno_gpu);
 	kfree(a5xx_gpu);
 }
@@ -1353,12 +1360,26 @@ static void a5xx_dump(struct msm_gpu *gpu)
 static int a5xx_pm_resume(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
 	int ret;
+
+	/*
+	 * On MSM8998 (and other pre-GMU chips), the GPU clocks are sourced
+	 * from GPU_GX_GDSC. We must power it on before enabling clocks.
+	 */
+	if (!IS_ERR_OR_NULL(a5xx_gpu->gxpd)) {
+		ret = pm_runtime_resume_and_get(a5xx_gpu->gxpd);
+		if (ret)
+			return ret;
+	}
 
 	/* Turn on the core power */
 	ret = msm_gpu_pm_resume(gpu);
-	if (ret)
+	if (ret) {
+		if (!IS_ERR_OR_NULL(a5xx_gpu->gxpd))
+			pm_runtime_put(a5xx_gpu->gxpd);
 		return ret;
+	}
 
 	/* Adreno 505, 506, 508, 509, 510, 512 needs manual RBBM sus/res control */
 	if (!(adreno_is_a530(adreno_gpu) || adreno_is_a540(adreno_gpu))) {
@@ -1431,6 +1452,10 @@ static int a5xx_pm_suspend(struct msm_gpu *gpu)
 	if (a5xx_gpu->has_whereami)
 		for (i = 0; i < gpu->nr_rings; i++)
 			a5xx_gpu->shadow[i] = 0;
+
+	/* Power off the GX domain after clocks are disabled */
+	if (!IS_ERR_OR_NULL(a5xx_gpu->gxpd))
+		pm_runtime_put_sync(a5xx_gpu->gxpd);
 
 	return 0;
 }
@@ -1789,6 +1814,19 @@ struct msm_gpu *a5xx_gpu_init(struct drm_device *dev)
 
 	msm_mmu_set_fault_handler(to_msm_vm(gpu->vm)->mmu, gpu,
 				  a5xx_fault_handler);
+
+	/*
+	 * Try to attach to the GX power domain if specified in DT.
+	 * This is needed on MSM8998 and other pre-GMU chips where the
+	 * GPU clocks are sourced from GPU_GX_GDSC.
+	 * It's fine if this returns NULL (domain not specified).
+	 */
+	a5xx_gpu->gxpd = dev_pm_domain_attach_by_name(&pdev->dev, "gx");
+	if (IS_ERR(a5xx_gpu->gxpd))
+		a5xx_gpu->gxpd = NULL;
+
+	if (a5xx_gpu->gxpd)
+		pm_runtime_enable(a5xx_gpu->gxpd);
 
 	/* Set up the preemption specific bits and pieces for each ringbuffer */
 	a5xx_preempt_init(gpu);

@@ -2145,7 +2145,10 @@
 			interrupts = <GIC_SPI 300 IRQ_TYPE_LEVEL_HIGH>;
 			iommus = <&adreno_smmu 0>;
 			operating-points-v2 = <&gpu_opp_table>;
-			power-domains = <&rpmpd MSM8998_VDDMX>;
+
+			power-domains = <&rpmpd MSM8998_VDDMX>,
+					<&gpucc GPU_GX_GDSC>;
+			power-domain-names = "mx", "gx";
 			status = "disabled";
 
 			gpu_opp_table: opp-table {
@@ -2208,15 +2211,8 @@
 				<GIC_SPI 329 IRQ_TYPE_LEVEL_HIGH>,
 				<GIC_SPI 330 IRQ_TYPE_LEVEL_HIGH>,
 				<GIC_SPI 331 IRQ_TYPE_LEVEL_HIGH>;
-			/*
-			 * GPU-GX GDSC's parent is GPU-CX. We need to bring up the
-			 * GPU-CX for SMMU but we need both of them up for Adreno.
-			 * Contemporarily, we also need to manage the VDDMX rpmpd
-			 * domain in the Adreno driver.
-			 * Enable GPU CX/GX GDSCs here so that we can manage the
-			 * SoC VDDMX RPM Power Domain in the Adreno driver.
-			 */
-			power-domains = <&gpucc GPU_GX_GDSC>;
+
+			power-domains = <&gpucc GPU_CX_GDSC>;
 		};
 
 		gpucc: clock-controller@5065000 {
