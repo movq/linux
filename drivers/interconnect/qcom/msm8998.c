@@ -15,11 +15,12 @@
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 
-#include "smd-rpm.h"
+#include "icc-rpm.h"
 
 #define RPM_BUS_MASTER_REQ	0x73616d62
 #define RPM_BUS_SLAVE_REQ	0x766c7362
@@ -175,8 +176,8 @@ enum {
 	MSM8998_SLAVE_PCIE_0,
 };
 
-#define to_qcom_provider(_provider) \
-	container_of(_provider, struct qcom_icc_provider, provider)
+#define to_msm8998_provider(_provider) \
+	container_of(_provider, struct msm8998_icc_provider, provider)
 
 static const struct clk_bulk_data bus_clocks[] = {
 	{ .id = "bus" },
@@ -197,7 +198,7 @@ static const struct clk_bulk_data bus_mm_clocks[] = {
  * @is_bimc_node: indicates whether to use bimc specific setting
  * @mmio: NoC base iospace
  */
-struct qcom_icc_provider {
+struct msm8998_icc_provider {
 	struct icc_provider provider;
 	struct clk_bulk_data *bus_clks;
 	int num_clks;
@@ -217,7 +218,7 @@ struct qcom_icc_provider {
  * @qos_mode: default qos mode for this node
  * @qos_port: qos port number for finding qos registers of this node
  */
-struct qcom_icc_qos {
+struct msm8998_icc_qos {
 	u32 areq_prio;
 	u32 prio_level;
 	bool limit_commands;
@@ -238,7 +239,7 @@ struct qcom_icc_qos {
  * @qos: NoC QoS setting parameters
  * @rate: current bus clock rate in Hz
  */
-struct qcom_icc_node {
+struct msm8998_icc_node {
 	unsigned char *name;
 	u16 id;
 	u16 links[MSM8998_MAX_LINKS];
@@ -246,19 +247,19 @@ struct qcom_icc_node {
 	u16 buswidth;
 	int mas_rpm_id;
 	int slv_rpm_id;
-	struct qcom_icc_qos qos;
+	struct msm8998_icc_qos qos;
 	u64 rate;
 };
 
-struct qcom_icc_desc {
-	struct qcom_icc_node **nodes;
+struct msm8998_icc_desc {
+	struct msm8998_icc_node **nodes;
 	size_t num_nodes;
 	const struct regmap_config *regmap_cfg;
 };
 
 #define DEFINE_QNODE(_name, _id, _buswidth, _mas_rpm_id, _slv_rpm_id,	\
 		     _ap_owned, _qos_mode, _qos_prio, _qos_port, ...)	\
-		static struct qcom_icc_node _name = {			\
+		static struct msm8998_icc_node _name = {			\
 		.name = #_name,						\
 		.id = _id,						\
 		.buswidth = _buswidth,					\
@@ -384,7 +385,7 @@ DEFINE_QNODE(slv_qdss_stm, MSM8998_SLAVE_QDSS_STM, 16, -1, 30, false, -1, 0, -1,
 DEFINE_QNODE(slv_pcie_0, MSM8998_SLAVE_PCIE_0, 16, -1, 84, true, -1, 0, -1, 0);
 DEFINE_QNODE(slv_srvc_snoc, MSM8998_SLAVE_SRVC_SNOC, 16, -1, 29, false, -1, 0, -1, 0);
 
-static struct qcom_icc_node *msm8998_a1noc_nodes[] = {
+static struct msm8998_icc_node *msm8998_a1noc_nodes[] = {
 	[MASTER_PCIE_0] = &mas_pcie_0,
 	[MASTER_USB3] = &mas_usb3,
 	[MASTER_UFS] = &mas_ufs,
@@ -400,13 +401,13 @@ static const struct regmap_config msm8998_a1noc_regmap_config = {
 	.fast_io	= true,
 };
 
-static struct qcom_icc_desc msm8998_a1noc = {
+static struct msm8998_icc_desc msm8998_a1noc = {
 	.nodes = msm8998_a1noc_nodes,
 	.num_nodes = ARRAY_SIZE(msm8998_a1noc_nodes),
 	.regmap_cfg = &msm8998_a1noc_regmap_config,
 };
 
-static struct qcom_icc_node *msm8998_a2noc_nodes[] = {
+static struct msm8998_icc_node *msm8998_a2noc_nodes[] = {
 	[MASTER_IPA] = &mas_ipa,
 	[MASTER_CNOC_A2NOC] = &mas_cnoc_a2noc,
 	[MASTER_SDCC_2] = &mas_sdcc_2,
@@ -427,13 +428,13 @@ static const struct regmap_config msm8998_a2noc_regmap_config = {
 	.fast_io	= true,
 };
 
-static struct qcom_icc_desc msm8998_a2noc = {
+static struct msm8998_icc_desc msm8998_a2noc = {
 	.nodes = msm8998_a2noc_nodes,
 	.num_nodes = ARRAY_SIZE(msm8998_a2noc_nodes),
 	.regmap_cfg = &msm8998_a2noc_regmap_config,
 };
 
-static struct qcom_icc_node *msm8998_bimc_nodes[] = {
+static struct msm8998_icc_node *msm8998_bimc_nodes[] = {
 	[MASTER_GNOC_BIMC] = &mas_gnoc_bimc,
 	[MASTER_OXILI] = &mas_oxili,
 	[MASTER_MNOC_BIMC] = &mas_mnoc_bimc,
@@ -452,13 +453,13 @@ static const struct regmap_config msm8998_bimc_regmap_config = {
 	.fast_io	= true,
 };
 
-static struct qcom_icc_desc msm8998_bimc = {
+static struct msm8998_icc_desc msm8998_bimc = {
 	.nodes = msm8998_bimc_nodes,
 	.num_nodes = ARRAY_SIZE(msm8998_bimc_nodes),
 	.regmap_cfg = &msm8998_bimc_regmap_config,
 };
 
-static struct qcom_icc_node *msm8998_cnoc_nodes[] = {
+static struct msm8998_icc_node *msm8998_cnoc_nodes[] = {
 	[MASTER_SNOC_CNOC] = &mas_snoc_cnoc,
 	[MASTER_QDSS_DAP] = &mas_qdss_dap,
 	[SLAVE_CNOC_A2NOC] = &slv_cnoc_a2noc,
@@ -509,13 +510,13 @@ static const struct regmap_config msm8998_cnoc_regmap_config = {
 	.fast_io	= true,
 };
 
-static struct qcom_icc_desc msm8998_cnoc = {
+static struct msm8998_icc_desc msm8998_cnoc = {
 	.nodes = msm8998_cnoc_nodes,
 	.num_nodes = ARRAY_SIZE(msm8998_cnoc_nodes),
 	.regmap_cfg = &msm8998_cnoc_regmap_config,
 };
 
-static struct qcom_icc_node *msm8998_gnoc_nodes[] = {
+static struct msm8998_icc_node *msm8998_gnoc_nodes[] = {
 	[MASTER_APSS_PROC] = &mas_apss_proc,
 	[SLAVE_GNOC_BIMC] = &slv_gnoc_bimc,
 };
@@ -528,13 +529,13 @@ static const struct regmap_config msm8998_gnoc_regmap_config = {
 	.fast_io	= true,
 };
 
-static struct qcom_icc_desc msm8998_gnoc = {
+static struct msm8998_icc_desc msm8998_gnoc = {
 	.nodes = msm8998_gnoc_nodes,
 	.num_nodes = ARRAY_SIZE(msm8998_gnoc_nodes),
 	.regmap_cfg = &msm8998_gnoc_regmap_config,
 };
 
-static struct qcom_icc_node *msm8998_mnoc_nodes[] = {
+static struct msm8998_icc_node *msm8998_mnoc_nodes[] = {
 	[MASTER_CNOC_MNOC_CFG] = &mas_cnoc_mnoc_cfg,
 	[MASTER_CPP] = &mas_cpp,
 	[MASTER_JPEG] = &mas_jpeg,
@@ -569,13 +570,13 @@ static const struct regmap_config msm8998_mnoc_regmap_config = {
 	.fast_io	= true,
 };
 
-static struct qcom_icc_desc msm8998_mnoc = {
+static struct msm8998_icc_desc msm8998_mnoc = {
 	.nodes = msm8998_mnoc_nodes,
 	.num_nodes = ARRAY_SIZE(msm8998_mnoc_nodes),
 	.regmap_cfg = &msm8998_mnoc_regmap_config,
 };
 
-static struct qcom_icc_node *msm8998_snoc_nodes[] = {
+static struct msm8998_icc_node *msm8998_snoc_nodes[] = {
 	[MASTER_HMSS] = &mas_hmss,
 	[MASTER_QDSS_BAM] = &mas_qdss_bam,
 	[MASTER_SNOC_CFG] = &mas_snoc_cfg,
@@ -604,14 +605,14 @@ static const struct regmap_config msm8998_snoc_regmap_config = {
 	.fast_io	= true,
 };
 
-static struct qcom_icc_desc msm8998_snoc = {
+static struct msm8998_icc_desc msm8998_snoc = {
 	.nodes = msm8998_snoc_nodes,
 	.num_nodes = ARRAY_SIZE(msm8998_snoc_nodes),
 	.regmap_cfg = &msm8998_snoc_regmap_config,
 };
 
 static int qcom_icc_bimc_set_qos_health(struct regmap *rmap,
-					struct qcom_icc_qos *qos,
+					struct msm8998_icc_qos *qos,
 					int regnum)
 {
 	u32 val;
@@ -637,8 +638,8 @@ static int qcom_icc_bimc_set_qos_health(struct regmap *rmap,
 static int qcom_icc_set_bimc_qos(struct icc_node *src, u64 max_bw,
 				 bool bypass_mode)
 {
-	struct qcom_icc_provider *qp;
-	struct qcom_icc_node *qn;
+	struct msm8998_icc_provider *qp;
+	struct msm8998_icc_node *qn;
 	struct icc_provider *provider;
 	u32 mode = NOC_QOS_MODE_BYPASS;
 	u32 val = 0;
@@ -646,7 +647,7 @@ static int qcom_icc_set_bimc_qos(struct icc_node *src, u64 max_bw,
 
 	qn = src->data;
 	provider = src->provider;
-	qp = to_qcom_provider(provider);
+	qp = to_msm8998_provider(provider);
 
 	if (qn->qos.qos_mode != -1)
 		mode = qn->qos.qos_mode;
@@ -672,7 +673,7 @@ static int qcom_icc_set_bimc_qos(struct icc_node *src, u64 max_bw,
 }
 
 static int qcom_icc_noc_set_qos_priority(struct regmap *rmap,
-					 struct qcom_icc_qos *qos)
+					 struct msm8998_icc_qos *qos)
 {
 	u32 val;
 	int rc;
@@ -691,15 +692,15 @@ static int qcom_icc_noc_set_qos_priority(struct regmap *rmap,
 
 static int qcom_icc_set_noc_qos(struct icc_node *src, u64 max_bw)
 {
-	struct qcom_icc_provider *qp;
-	struct qcom_icc_node *qn;
+	struct msm8998_icc_provider *qp;
+	struct msm8998_icc_node *qn;
 	struct icc_provider *provider;
 	u32 mode = NOC_QOS_MODE_BYPASS;
 	int rc = 0;
 
 	qn = src->data;
 	provider = src->provider;
-	qp = to_qcom_provider(provider);
+	qp = to_msm8998_provider(provider);
 
 	if (qn->qos.qos_port < 0) {
 		dev_dbg(src->provider->dev,
@@ -729,8 +730,8 @@ static int qcom_icc_set_noc_qos(struct icc_node *src, u64 max_bw)
 
 static int qcom_icc_qos_set(struct icc_node *node, u64 sum_bw)
 {
-	struct qcom_icc_provider *qp = to_qcom_provider(node->provider);
-	struct qcom_icc_node *qn = node->data;
+	struct msm8998_icc_provider *qp = to_msm8998_provider(node->provider);
+	struct msm8998_icc_node *qn = node->data;
 
 	dev_dbg(node->provider->dev, "Setting QoS for %s\n", qn->name);
 
@@ -774,8 +775,8 @@ static int qcom_icc_rpm_set(int mas_rpm_id, int slv_rpm_id, u64 sum_bw)
 
 static int qcom_icc_set(struct icc_node *src, struct icc_node *dst)
 {
-	struct qcom_icc_provider *qp;
-	struct qcom_icc_node *qn;
+	struct msm8998_icc_provider *qp;
+	struct msm8998_icc_node *qn;
 	struct icc_provider *provider;
 	struct icc_node *n;
 	u64 sum_bw;
@@ -787,7 +788,7 @@ static int qcom_icc_set(struct icc_node *src, struct icc_node *dst)
 
 	qn = src->data;
 	provider = src->provider;
-	qp = to_qcom_provider(provider);
+	qp = to_msm8998_provider(provider);
 
 	list_for_each_entry(n, &provider->nodes, node_list)
 		provider->aggregate(n, 0, n->avg_bw, n->peak_bw,
@@ -829,14 +830,14 @@ static int qcom_icc_set(struct icc_node *src, struct icc_node *dst)
 	return 0;
 }
 
-static int qnoc_probe(struct platform_device *pdev)
+static int msm8998_qnoc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	const struct qcom_icc_desc *desc;
+	const struct msm8998_icc_desc *desc;
 	struct icc_onecell_data *data;
 	struct icc_provider *provider;
-	struct qcom_icc_node **qnodes;
-	struct qcom_icc_provider *qp;
+	struct msm8998_icc_node **qnodes;
+	struct msm8998_icc_provider *qp;
 	struct icc_node *node;
 	struct resource *res;
 	size_t num_nodes, i;
@@ -909,12 +910,7 @@ static int qnoc_probe(struct platform_device *pdev)
 	provider->xlate = of_icc_xlate_onecell;
 	provider->data = data;
 
-	ret = icc_provider_add(provider);
-	if (ret) {
-		dev_err(dev, "error adding interconnect provider: %d\n", ret);
-		clk_bulk_disable_unprepare(qp->num_clks, qp->bus_clks);
-		return ret;
-	}
+	icc_provider_init(provider);
 
 	for (i = 0; i < num_nodes; i++) {
 		size_t j;
@@ -941,20 +937,16 @@ static int qnoc_probe(struct platform_device *pdev)
 err:
 	icc_nodes_remove(provider);
 	clk_bulk_disable_unprepare(qp->num_clks, qp->bus_clks);
-	icc_provider_del(provider);
 
 	return ret;
 }
 
-static int qnoc_remove(struct platform_device *pdev)
+static void msm8998_qnoc_remove(struct platform_device *pdev)
 {
-	struct qcom_icc_provider *qp = platform_get_drvdata(pdev);
+	struct msm8998_icc_provider *qp = platform_get_drvdata(pdev);
 
 	icc_nodes_remove(&qp->provider);
 	clk_bulk_disable_unprepare(qp->num_clks, qp->bus_clks);
-	icc_provider_del(&qp->provider);
-
-	return 0;
 }
 
 static const struct of_device_id msm8998_noc_of_match[] = {
@@ -970,8 +962,8 @@ static const struct of_device_id msm8998_noc_of_match[] = {
 MODULE_DEVICE_TABLE(of, msm8998_noc_of_match);
 
 static struct platform_driver msm8998_noc_driver = {
-	.probe = qnoc_probe,
-	.remove = qnoc_remove,
+	.probe = msm8998_qnoc_probe,
+	.remove = msm8998_qnoc_remove,
 	.driver = {
 		.name = "qnoc-msm8998",
 		.of_match_table = msm8998_noc_of_match,
