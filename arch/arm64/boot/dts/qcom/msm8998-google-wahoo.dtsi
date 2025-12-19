@@ -369,3 +369,11 @@
 &pmi8998_fg {
 	status = "okay";
 };
+
+&cpufreq_hw {
+	status = "okay";
+};
+
+&apc_cprh {
+	status = "okay";
+};
