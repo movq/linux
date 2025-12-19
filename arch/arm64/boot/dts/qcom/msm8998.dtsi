@@ -489,68 +489,68 @@
 		opp-979200000 {
 			opp-hz = /bits/ 64 <979200000>;
 			required-opps = <&cprh_opp10>;
-			qcom,pll-override = <0x4290029>;
+			qcom,pll-override = <0x04290029>;
 			qcom,spare-data = <1>;
 		};
 		opp-902400000 {
 			opp-hz = /bits/ 64 <902400000>;
 			required-opps = <&cprh_opp9>;
-			qcom,pll-override = <0x4260026>;
+			qcom,pll-override = <0x04260026>;
 			qcom,spare-data = <1>;
 		};
 		opp-806400000 {
 			opp-hz = /bits/ 64 <806400000>;
 			required-opps = <&cprh_opp8>;
-			qcom,pll-override = <0x3200022>;
+			qcom,pll-override = <0x03220022>;
 			qcom,pll-div = <1>;
 			qcom,spare-data = <1>;
 		};
 		opp-729600000 {
 			opp-hz = /bits/ 64 <729600000>;
 			required-opps = <&cprh_opp7>;
-			qcom,pll-override = <0x3200020>;
+			qcom,pll-override = <0x03200020>;
 			qcom,pll-div = <1>;
 			qcom,spare-data = <1>;
 		};
 		opp-652800000 {
 			opp-hz = /bits/ 64 <652800000>;
 			required-opps = <&cprh_opp6>;
-			qcom,pll-override = <0x3200020>;
+			qcom,pll-override = <0x03200020>;
 			qcom,pll-div = <1>;
 			qcom,spare-data = <1>;
 		};
 		opp-576000000 {
 			opp-hz = /bits/ 64 <576000000>;
 			required-opps = <&cprh_opp5>;
-			qcom,pll-override = <0x2200020>;
+			qcom,pll-override = <0x02200020>;
 			qcom,pll-div = <1>;
 			qcom,spare-data = <1>;
 		};
 		opp-499200000 {
 			opp-hz = /bits/ 64 <499200000>;
 			required-opps = <&cprh_opp4>;
-			qcom,pll-override = <0x2200020>;
+			qcom,pll-override = <0x02200020>;
 			qcom,pll-div = <1>;
 			qcom,spare-data = <1>;
 		};
 		opp-422400000 {
 			opp-hz = /bits/ 64 <422400000>;
 			required-opps = <&cprh_opp3>;
-			qcom,pll-override = <0x2200020>;
+			qcom,pll-override = <0x02200020>;
 			qcom,pll-div = <1>;
 			qcom,spare-data = <1>;
 		};
 		opp-345600000 {
 			opp-hz = /bits/ 64 <345600000>;
 			required-opps = <&cprh_opp2>;
-			qcom,pll-override = <0x1200020>;
+			qcom,pll-override = <0x01200020>;
 			qcom,pll-div = <1>;
 			qcom,spare-data = <1>;
 		};
 		opp-300000000 {
 			opp-hz = /bits/ 64 <300000000>;
 			required-opps = <&cprh_opp1>;
-			qcom,pll-override = <0x1200020>;
+			qcom,pll-override = <0x01200020>;
 			qcom,spare-data = <1>;
 		};
 	};
@@ -634,67 +634,68 @@
 		opp-960000000 {
 			opp-hz = /bits/ 64 <960000000>;
 			required-opps = <&cprh_opp10>;
-			qcom,pll-override = <0x4280028>;
+			qcom,pll-override = <0x04280028>;
 			qcom,spare-data = <1>;
 		};
 		opp-883200000 {
 			opp-hz = /bits/ 64 <883200000>;
 			required-opps = <&cprh_opp9>;
-			qcom,pll-override = <0x4250025>;
+			qcom,pll-override = <0x04250025>;
 			qcom,spare-data = <1>;
 		};
 		opp-825600000 {
 			opp-hz = /bits/ 64 <825600000>;
 			required-opps = <&cprh_opp8>;
-			qcom,pll-override = <0x3200022>;
+			qcom,pll-override = <0x03220022>;
 			qcom,spare-data = <1>;
 		};
 		opp-748800000 {
 			opp-hz = /bits/ 64 <748800000>;
 			required-opps = <&cprh_opp7>;
-			qcom,pll-override = <0x3200020>;
+			qcom,pll-override = <0x03200020>;
 			qcom,pll-div = <1>;
 			qcom,spare-data = <1>;
 		};
 		opp-672000000 {
 			opp-hz = /bits/ 64 <672000000>;
 			required-opps = <&cprh_opp6>;
-			qcom,pll-override = <0x3200020>;
+			qcom,pll-override = <0x03200020>;
 			qcom,pll-div = <1>;
 			qcom,spare-data = <1>;
 		};
 		opp-595200000 {
 			opp-hz = /bits/ 64 <595200000>;
 			required-opps = <&cprh_opp5>;
-			qcom,pll-override = <0x2200020>;
+			qcom,pll-override = <0x02200020>;
 			qcom,pll-div = <1>;
 			qcom,spare-data = <1>;
 		};
 		opp-518400000 {
 			opp-hz = /bits/ 64 <518400000>;
 			required-opps = <&cprh_opp4>;
-			qcom,pll-override = <0x2200020>;
+			qcom,pll-override = <0x02200020>;
 			qcom,pll-div = <1>;
 			qcom,spare-data = <1>;
 		};
 		opp-441600000 {
 			opp-hz = /bits/ 64 <441600000>;
 			required-opps = <&cprh_opp3>;
-			qcom,pll-override = <0x2200020>;
+			qcom,pll-override = <0x02200020>;
 			qcom,pll-div = <1>;
 			qcom,spare-data = <1>;
 		};
 		opp-364800000 {
 			opp-hz = /bits/ 64 <364800000>;
 			required-opps = <&cprh_opp2>;
-			qcom,pll-override = <0x1200020>;
+			qcom,pll-override = <0x01200020>;
 			qcom,pll-div = <1>;
 			qcom,spare-data = <1>;
 		};
 		opp-300000000 {
 			opp-hz = /bits/ 64 <300000000>;
 			required-opps = <&cprh_opp1>;
-			qcom,pll-override = <0x1200020>;
+			qcom,pll-override = <0x01200020>;
+			qcom,spare-data = <1>;
 		};
 	};
 

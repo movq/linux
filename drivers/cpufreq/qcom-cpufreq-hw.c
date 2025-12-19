@@ -87,7 +87,7 @@
 #define SEQ_APM_PARAM			76
 #define SEQ_MEM_ACC_CROSSOVER_VC	88
 #define SEQ_MEM_ACC_MAX_LEVELS		4
-#define SEQ_MEMACC_REG(base, n)		SEQUENCER_REG(base, SEQ_MEM_ACC_0 + n)
+#define SEQ_MEMACC_REG(base, n)		((base) + ((SEQ_MEM_ACC_0 + (n)) * 4))
 
 /* ACD */
 #define ACD_WRITE_CTL_UPDATE_EN		BIT(0)
