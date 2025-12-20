@@ -120,30 +120,6 @@
 &adreno_gpu {
 	status = "okay";
 
-	/*
-	 * Disable higher GPU frequencies and bump voltage levels on remaining
-	 * OPPs to test voltage-related instability.
-	 */
-	opp-table {
-		/delete-node/ opp-710000097;
-		/delete-node/ opp-670000048;
-		/delete-node/ opp-596000097;
-		/delete-node/ opp-515000097;
-
-		/* Override voltage levels - bump each up significantly */
-		opp-414000000 {
-			opp-level = <RPM_SMD_LEVEL_NOM>;  /* was SVS */
-		};
-
-		opp-342000000 {
-			opp-level = <RPM_SMD_LEVEL_SVS_PLUS>;  /* was LOW_SVS */
-		};
-
-		opp-257000000 {
-			opp-level = <RPM_SMD_LEVEL_SVS>;  /* was MIN_SVS */
-		};
-	};
-
 	zap-shader {
 		memory-region = <&zap_shader_region>;
 		firmware-name = "qcom/msm8998/taimen/a540_zap.mdt";
