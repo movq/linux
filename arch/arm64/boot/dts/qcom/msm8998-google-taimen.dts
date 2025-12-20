@@ -135,3 +135,9 @@
 	qcom,max-voltage-uv = <4350000>;    /* 4.35V max */
 	qcom,battery-capacity-ua = <3520000>; /* 3520 mAh */
 };
+
+&remoteproc_mss {
+	status = "okay";
+	firmware-name = "qcom/msm8998/taimen/mba.mbn",
+			"qcom/msm8998/taimen/modem.mdt";
+};
