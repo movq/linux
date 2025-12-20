@@ -841,8 +841,46 @@ static int stmfts_suspend(struct device *dev)
 static int stmfts_resume(struct device *dev)
 {
 	struct stmfts_data *sdata = dev_get_drvdata(dev);
+	int err;
 
-	return stmfts_power_on(sdata);
+	err = stmfts_power_on(sdata);
+	if (err)
+		return err;
+
+	/*
+	 * If the input device was open before suspend, we need to
+	 * re-enable touch sensing since stmfts_power_on() leaves
+	 * the chip in SLEEP_IN mode.
+	 */
+	if (sdata->running) {
+		err = i2c_smbus_write_byte(sdata->client, STMFTS_SLEEP_OUT);
+		if (err) {
+			dev_err(dev, "failed to exit sleep after resume: %d\n", err);
+			return err;
+		}
+
+		err = i2c_smbus_write_byte(sdata->client, STMFTS_MS_MT_SENSE_ON);
+		if (err) {
+			dev_err(dev, "failed to enable touch sensing after resume: %d\n", err);
+			return err;
+		}
+
+		if (sdata->hover_enabled) {
+			err = i2c_smbus_write_byte(sdata->client,
+						   STMFTS_SS_HOVER_SENSE_ON);
+			if (err)
+				dev_warn(dev, "failed to enable hover after resume: %d\n", err);
+		}
+
+		if (sdata->use_key) {
+			err = i2c_smbus_write_byte(sdata->client,
+						   STMFTS_MS_KEY_SENSE_ON);
+			if (err)
+				dev_warn(dev, "failed to enable touchkey after resume: %d\n", err);
+		}
+	}
+
+	return 0;
 }
 
 static const struct dev_pm_ops stmfts_pm_ops = {
