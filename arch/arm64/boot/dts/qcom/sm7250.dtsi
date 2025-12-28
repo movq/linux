@@ -446,6 +446,23 @@
 			      <0x0 0x17a60000 0x0 0x100000>;    /* GICR * 8 */
 			interrupts = <GIC_PPI 8 IRQ_TYPE_LEVEL_HIGH>;
 		};
+
+		tlmm: pinctrl@f100000 {
+			compatible = "qcom,sm7250-pinctrl";
+			reg = <0 0x0f100000 0 0x300000>,
+			      <0 0x0f500000 0 0x300000>,
+			      <0 0x0f900000 0 0x300000>;
+			reg-names = "south", "west", "east";
+			interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			gpio-ranges = <&tlmm 0 0 181>;
+			gpio-reserved-ranges = <0 4>;
+			wakeup-parent = <&pdc>;
+			status = "disabled";
+		};
 	};
 
 	timer {
