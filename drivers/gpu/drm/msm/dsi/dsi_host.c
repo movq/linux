@@ -1573,8 +1573,19 @@ static void dsi_err_worker(struct work_struct *work)
 	u32 status = msm_host->err_work_state;
 
 	pr_err_ratelimited("%s: status=%x\n", __func__, status);
-	if (status & DSI_ERR_STATE_MDP_FIFO_UNDERFLOW)
-		dsi_sw_reset(msm_host);
+	if (status & DSI_ERR_STATE_MDP_FIFO_UNDERFLOW) {
+		u32 ctrl = dsi_read(msm_host, REG_DSI_CTRL);
+		/*
+		 * MDP FIFO underflow only makes sense when an MDP engine is
+		 * actively pushing data. If neither video nor command mode is
+		 * enabled, we're in the initialization phase before the MDP
+		 * is active. Any FIFO underflow errors in this state are
+		 * spurious (likely latched from a previous state or glitch).
+		 * Skip the disruptive 20ms sw_reset in this case.
+		 */
+		if (ctrl & (DSI_CTRL_VID_MODE_EN | DSI_CTRL_CMD_MODE_EN))
+			dsi_sw_reset(msm_host);
+	}
 
 	/* It is safe to clear here because error irq is disabled. */
 	msm_host->err_work_state = 0;
