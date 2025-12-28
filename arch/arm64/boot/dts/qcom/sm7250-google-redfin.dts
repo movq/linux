@@ -182,3 +182,65 @@
 &uart2 {
 	status = "okay";
 };
+
+&tlmm {
+	status = "okay";
+
+	disp_te_default: disp-te-default-state {
+		pins = "gpio10";
+		function = "mdp_vsync";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+};
+
+&pm7250b_gpios {
+	disp_reset_default: disp-reset-default-state {
+		pins = "gpio5";
+		function = "normal";
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_MED>;
+		bias-pull-down;
+	};
+};
+
+&mdss {
+	status = "okay";
+};
+
+&mdss_mdp {
+	status = "okay";
+};
+
+&mdss_dsi0 {
+	status = "okay";
+	vdda-supply = <&vreg_l9a_1p2>;
+
+	panel@0 {
+		compatible = "samsung,s6e3hc2";
+		reg = <0>;
+
+		pinctrl-0 = <&disp_te_default &disp_reset_default>;
+		pinctrl-names = "default";
+
+		vddio-supply = <&vreg_l1c_1p8>;
+		vdd-supply = <&vreg_l16a_3p0>;
+
+		reset-gpios = <&pm7250b_gpios 5 GPIO_ACTIVE_LOW>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	remote-endpoint = <&panel_in>;
+	data-lanes = <0 1 2 3>;
+};
+
+&mdss_dsi0_phy {
+	status = "okay";
+	vdds-supply = <&vreg_l5a_0p88>;
+};
