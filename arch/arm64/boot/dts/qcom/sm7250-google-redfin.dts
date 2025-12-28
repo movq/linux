@@ -1,0 +1,40 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (c) 2025 Mike Jones <mike@mjones.org>
+ */
+
+/dts-v1/;
+
+#include "sm7250.dtsi"
+
+/ {
+	model = "Google Pixel 5";
+	compatible = "google,redfin", "qcom,sm7250";
+	chassis-type = "handset";
+
+	aliases {
+		serial0 = &uart2;
+	};
+
+	chosen {
+		bootargs = "earlycon=qcom_geni,0x888000 pd_ignore_unused regulator_ignore_unused loglevel=1 pmos.debug-shell";
+		stdout-path = "serial0:115200n8";
+	};
+
+	ramoops@b7e41000 {
+		compatible = "ramoops";
+		reg = <0x0 0xb7e41000 0x0 0x400000>;
+		console-size = <0x100000>;
+		record-size = <0x1000>;
+		ftrace-size = <0x0>;
+		pmsg-size = <0x0>;
+	};
+};
+
+&qupv3_id_0 {
+	status = "okay";
+};
+
+&uart2 {
+	status = "okay";
+};
