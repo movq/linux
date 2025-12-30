@@ -70,18 +70,6 @@
 		vin-supply = <&vph_pwr>;
 	};
 
-	vreg_l5a_0p88: l5a-regulator {
-		compatible = "regulator-fixed";
-		regulator-name = "vreg_l5a_0p88";
-
-		regulator-min-microvolt = <880000>;
-		regulator-max-microvolt = <880000>;
-
-		regulator-always-on;
-
-		vin-supply = <&vph_pwr>;
-	};
-
 	vreg_l9a_1p2: l9a-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vreg_l9a_1p2";
@@ -125,6 +113,13 @@
 		vreg_s6a_0p6: smps6 {
 			regulator-min-microvolt = <408000>;
 			regulator-max-microvolt = <1128000>;
+		};
+
+		vreg_l5a_0p88: ldo5 {
+			regulator-name = "vreg_l5a_0p88";
+			regulator-min-microvolt = <880000>;
+			regulator-max-microvolt = <880000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
 		vreg_l16a_3p0: ldo16 {
