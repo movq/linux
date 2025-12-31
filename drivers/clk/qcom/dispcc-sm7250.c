@@ -113,9 +113,9 @@ static const struct parent_map disp_cc_parent_map_3[] = {
 
 static const struct clk_parent_data disp_cc_parent_data_3[] = {
 	{ .fw_name = "bi_tcxo"},
-	{ .fw_name = "disp_cc_pll0"},
+	{ .hw = &disp_cc_pll0.clkr.hw },
 	{ .fw_name = "gcc_disp_gpll0_clk_src"},
-	{ .fw_name = "disp_cc_pll0_out_even"},
+	{ .hw = &disp_cc_pll0.clkr.hw }, /* OUT_EVEN unused, reference PLL0 */
 };
 
 static const struct parent_map disp_cc_parent_map_4[] = {
